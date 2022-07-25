@@ -16,7 +16,7 @@ beforeEach(async () => {
 
 test('GET /api/blogs return json', async () => {
   await api
-    .get('api/blogs')
+    .get('/api/blogs')
     .expect(200)
     .expect('Content-Type', /application\/json/)
 })
@@ -42,4 +42,35 @@ test('POST /api/blogs successfully creates new blog post', async () => {
   
   const blogsAtEnd = await helper.getDb()
   expect(blogsAtEnd).toHaveLength(helper.initBlogs.length + 1)
+})
+
+test('if likes property missing in request, default give 0', async () => {
+  const newBlog = {
+    title: "ABC",
+    author: "Chris P. Bacon",
+    url: "https://www.youtube.com/watch?v=pMA3x-bc8iM",
+    // likes: 2
+  }
+
+  await api
+    .post('/api/blogs')
+    .send(newBlog)
+    .expect(201)
+    .expect('Content-Type', /application\/json/)
+
+  const blogsAtEnd = await helper.getDb()
+  expect(blogsAtEnd[2].likes).toBeDefined()
+})
+
+test('if title & url property missing, backend respond 400', async () => {
+  const newBlog = {
+    // title: "ABC",
+    author: "Chris P. Bacon",
+    // url: "https://www.youtube.com/watch?v=pMA3x-bc8iM",
+    likes: 2
+  }
+  await api
+    .post('/api/blogs')
+    .send(newBlog)
+    .expect(400)
 })
