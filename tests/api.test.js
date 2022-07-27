@@ -74,3 +74,21 @@ test('if title & url property missing, backend respond 400', async () => {
     .send(newBlog)
     .expect(400)
 })
+
+test('deletion of existing blog', async () => {
+  const dbAtStart = await helper.getDb()
+  const blogToDelete = await dbAtStart[0]
+
+  await api
+    .delete(`/api/blogs/${blogToDelete.id}`)
+    .expect(204)
+  
+    const dbAfterDelete = await helper.getDb()
+    expect(dbAfterDelete).toHaveLength(dbAtStart.length - 1)
+})
+
+test('deletion of non-existing blog', async () => {
+  await api
+    .delete(`/api/blogs/${helper.nonExistingId()}`)
+    .expect(400)
+})
