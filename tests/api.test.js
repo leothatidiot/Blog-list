@@ -92,3 +92,19 @@ test('deletion of non-existing blog', async () => {
     .delete(`/api/blogs/${helper.nonExistingId()}`)
     .expect(400)
 })
+
+test('update blog check likes', async () => {
+  const blogAtStart = await helper.initBlogs[0]
+  
+  blogAfterUpdate = await {...blogAtStart}
+  blogAfterUpdate.likes = await blogAtStart.likes + 1
+  
+  await api
+    .put(`/api/blogs/${blogAfterUpdate.id}`)
+    .send(blogAfterUpdate)
+    .expect('Content-Type', /application\/json/)
+  
+  const dbAfterUpdate = await helper.getDb()
+  expect(dbAfterUpdate[0].likes).toBe(blogAfterUpdate.likes)
+  console.log(dbAfterUpdate)
+})

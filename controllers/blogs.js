@@ -30,4 +30,9 @@ blogsRouter.delete('/api/blogs/:id', async (request, response) => {
   })
 })
 
+blogsRouter.put('/api/blogs/:id', async (request, response) => {
+  const updatedBlog = await Blog.updateOne(request.params, request.body)
+  response.json(updatedBlog)
+})
+
 module.exports = blogsRouter
