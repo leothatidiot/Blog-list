@@ -1,4 +1,5 @@
 const Blog = require('../models/blog')
+const User = require('../models/user')
 const helper = require('./helper')
 const supertest = require('supertest')
 const app = require('../app')
@@ -7,7 +8,7 @@ const api = supertest(app)
 
 // initializing database
 beforeEach(async () => {
-  await Blog.deleteMany()
+  await Blog.deleteMany({})
   for (let blog of helper.initBlogs) {
     let blogObject = new Blog(blog)
     await blogObject.save()
@@ -40,7 +41,7 @@ test('POST /api/blogs successfully creates new blog post', async () => {
     .expect(201)
     .expect('Content-Type', /application\/json/)
   
-  const blogsAtEnd = await helper.getDb()
+  const blogsAtEnd = await helper.getBlogs()
   expect(blogsAtEnd).toHaveLength(helper.initBlogs.length + 1)
 })
 
@@ -58,7 +59,7 @@ test('if likes property missing in request, default give 0', async () => {
     .expect(201)
     .expect('Content-Type', /application\/json/)
 
-  const blogsAtEnd = await helper.getDb()
+  const blogsAtEnd = await helper.getBlogs()
   expect(blogsAtEnd[2].likes).toBeDefined()
 })
 
@@ -76,14 +77,14 @@ test('if title & url property missing, backend respond 400', async () => {
 })
 
 test('deletion of existing blog', async () => {
-  const dbAtStart = await helper.getDb()
+  const dbAtStart = await helper.getBlogs()
   const blogToDelete = await dbAtStart[0]
 
   await api
     .delete(`/api/blogs/${blogToDelete.id}`)
     .expect(204)
   
-    const dbAfterDelete = await helper.getDb()
+    const dbAfterDelete = await helper.getBlogs()
     expect(dbAfterDelete).toHaveLength(dbAtStart.length - 1)
 })
 
@@ -104,7 +105,40 @@ test('update blog check likes', async () => {
     .send(blogAfterUpdate)
     .expect('Content-Type', /application\/json/)
   
-  const dbAfterUpdate = await helper.getDb()
+  const dbAfterUpdate = await helper.getBlogs()
   expect(dbAfterUpdate[0].likes).toBe(blogAfterUpdate.likes)
   console.log(dbAfterUpdate)
+})
+
+describe('test /api/users', () => {
+  beforeEach(async () => {
+    await User.deleteMany({})
+    for (let user of helper.initUsers) {
+      let userObject = new User(user)
+      await userObject.save()
+    }
+  })
+
+  test('username and password must be at least 3 characters long', async () => {
+    const newUser = {
+      username: "ro", // less than 3
+      name: "Superuser",
+      password: "salainen"
+    }
+    await api
+      .post('/api/users')
+      .send(newUser)
+      .expect(400)
+  })
+  
+  test('username must be unique', async () => {
+    await api
+      .post('/api/users')
+      .send({
+        username: "root",
+        name: "Superuser",
+        password: "salainen"
+      }) // existed
+      .expect(400)
+  })
 })
