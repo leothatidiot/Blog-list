@@ -1,12 +1,12 @@
 const blogsRouter = require('express').Router()
 const Blog = require('../models/blog')
 
-blogsRouter.get('/api/blogs', async (request, response) => {
+blogsRouter.get('/', async (request, response) => {
   const blogs = await Blog.find({})
   response.json(blogs)
 })
 
-blogsRouter.post('/api/blogs', async (request, response) => {
+blogsRouter.post('/', async (request, response) => {
   if (! request.body.hasOwnProperty('title') && 
      ! request.body.hasOwnProperty('url')) {
     response.status(400).end()
@@ -20,7 +20,7 @@ blogsRouter.post('/api/blogs', async (request, response) => {
   }
 })
 
-blogsRouter.delete('/api/blogs/:id', async (request, response) => {
+blogsRouter.delete('/:id', async (request, response) => {
   Blog.findByIdAndRemove(request.params.id, (err) => {
     if (err) {
       response.status(400).end()
@@ -30,7 +30,7 @@ blogsRouter.delete('/api/blogs/:id', async (request, response) => {
   })
 })
 
-blogsRouter.put('/api/blogs/:id', async (request, response) => {
+blogsRouter.put('/:id', async (request, response) => {
   const updatedBlog = await Blog.updateOne(request.params, request.body)
   response.json(updatedBlog)
 })
