@@ -1,23 +1,41 @@
 const blogsRouter = require('express').Router()
 const Blog = require('../models/blog')
+const User = require('../models/user')
 
 blogsRouter.get('/', async (request, response) => {
-  const blogs = await Blog.find({})
+  const blogs = await Blog.find({}).populate(
+    'user',
+    { username: 1, name: 1, id: 1 }
+  )
   response.json(blogs)
 })
 
-blogsRouter.post('/', async (request, response) => {
-  if (! request.body.hasOwnProperty('title') && 
-     ! request.body.hasOwnProperty('url')) {
+blogsRouter.post('/', async (request, response) => {  
+  console.log(request.body.hasOwnProperty('title'))
+  if (!request.body.hasOwnProperty('title') || 
+      !request.body.hasOwnProperty('url')) {
     response.status(400).end()
-  } else {
-    if (! request.body.hasOwnProperty('likes')) {
-      request.body.likes = 0
-    }
-    const blog = await new Blog(request.body)
-    const result = await blog.save()
-    response.status(201).json(result)
   }
+  
+  if (!request.body.hasOwnProperty('likes')) {
+    request.body.likes = 0
+  }
+
+  const user = await User.findOne({}) // 随便找
+
+  const blog = new Blog({
+    user: user._id, // uploader
+    url: request.body.url,
+    title: request.body.title,
+    author: request.body.author,
+    likes: request.body.likes
+  })
+
+  const savedBlog = await blog.save()
+  user.blogs = user.blogs.concat(savedBlog._id)
+  await user.save()
+
+  response.status(201).json(savedBlog)
 })
 
 blogsRouter.delete('/:id', async (request, response) => {

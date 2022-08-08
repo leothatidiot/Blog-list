@@ -34,6 +34,11 @@ const initUsers = [
     name: "Superuser",
     password: "salainen"
   },
+  {
+    username: "mluukkai",
+    name: "Matti Luukkainen",
+    password: '123456'
+  }
 ]
 
 const getUsers = async () => {
