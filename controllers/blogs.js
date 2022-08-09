@@ -1,3 +1,4 @@
+const jwt = require('jsonwebtoken')
 const blogsRouter = require('express').Router()
 const Blog = require('../models/blog')
 const User = require('../models/user')
@@ -10,8 +11,15 @@ blogsRouter.get('/', async (request, response) => {
   response.json(blogs)
 })
 
+const getTokenFrom = request => {
+  const authorization = request.get('authorization')
+  if (authorization && authorization.toLowerCase().startsWith('bearer ')) {
+    return authorization.substring(7)
+  }
+  return null
+}
+
 blogsRouter.post('/', async (request, response) => {  
-  console.log(request.body.hasOwnProperty('title'))
   if (!request.body.hasOwnProperty('title') || 
       !request.body.hasOwnProperty('url')) {
     response.status(400).end()
@@ -21,7 +29,13 @@ blogsRouter.post('/', async (request, response) => {
     request.body.likes = 0
   }
 
-  const user = await User.findOne({}) // 随便找
+  // 从 token 识别用户
+  const token = getTokenFrom(request)
+  const decodedToken = jwt.verify(token, process.env.SECRET)
+  if (!decodedToken.id) {
+    return response.status(401).json({ error: 'token missing or invalid' })
+  }
+  const user = await User.findById(decodedToken.id)
 
   const blog = new Blog({
     user: user._id, // uploader
