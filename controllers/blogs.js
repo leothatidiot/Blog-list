@@ -44,13 +44,19 @@ blogsRouter.post('/', async (request, response) => {
 })
 
 blogsRouter.delete('/:id', async (request, response) => {
-  Blog.findByIdAndRemove(request.params.id, (err) => {
-    if (err) {
-      response.status(400).end()
-    } else {
-      response.status(204).end()
-    }
-  })
+  const decodedToken = jwt.verify(request.token, process.env.SECRET)
+  const blog = await Blog.findById(request.params.id)
+
+  if (blog === null) {
+    return response.status(400) // not exist, 400 bad request
+  }
+
+  if (blog.user.toString() !== decodedToken.id.toString()) {
+    return response.status(401).json({ error: 'not the creator'}) // 401 unauthorized
+  }
+
+  await Blog.findByIdAndRemove(blog.id)
+  response.status(204).end() // deleted
 })
 
 blogsRouter.put('/:id', async (request, response) => {
