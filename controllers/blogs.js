@@ -1,7 +1,6 @@
-const jwt = require('jsonwebtoken')
 const blogsRouter = require('express').Router()
 const Blog = require('../models/blog')
-const User = require('../models/user')
+const { userExtractor } = require('../utils/middleware')
 
 blogsRouter.get('/', async (request, response) => {
   const blogs = await Blog.find({}).populate(
@@ -11,7 +10,7 @@ blogsRouter.get('/', async (request, response) => {
   response.json(blogs)
 })
 
-blogsRouter.post('/', async (request, response) => {  
+blogsRouter.post('/', userExtractor,async (request, response) => {  
   if (!request.body.hasOwnProperty('title') || 
       !request.body.hasOwnProperty('url')) {
     response.status(400).end()
@@ -21,12 +20,7 @@ blogsRouter.post('/', async (request, response) => {
     request.body.likes = 0
   }
 
-  // 从 token 识别用户
-  const decodedToken = jwt.verify(request.token, process.env.SECRET)
-  if (!decodedToken.id) {
-    return response.status(401).json({ error: 'token missing or invalid' })
-  }
-  const user = await User.findById(decodedToken.id)
+  const user = request.user
 
   const blog = new Blog({
     user: user._id, // uploader
@@ -43,15 +37,14 @@ blogsRouter.post('/', async (request, response) => {
   response.status(201).json(savedBlog)
 })
 
-blogsRouter.delete('/:id', async (request, response) => {
-  const decodedToken = jwt.verify(request.token, process.env.SECRET)
+blogsRouter.delete('/:id', userExtractor, async (request, response) => {
   const blog = await Blog.findById(request.params.id)
 
   if (blog === null) {
     return response.status(400) // not exist, 400 bad request
   }
 
-  if (blog.user.toString() !== decodedToken.id.toString()) {
+  if (blog.user.toString() !== request.user.id.toString()) {
     return response.status(401).json({ error: 'not the creator'}) // 401 unauthorized
   }
 
