@@ -10,10 +10,14 @@ blogsRouter.get('/', async (request, response) => {
   response.json(blogs)
 })
 
-blogsRouter.post('/', userExtractor,async (request, response) => {  
+blogsRouter.post('/', userExtractor, async (request, response) => {  
+  if (request.user === null) {
+    return response.status(401).json({ error: 'token missing or invalid' })
+  }
+
   if (!request.body.hasOwnProperty('title') || 
       !request.body.hasOwnProperty('url')) {
-    response.status(400).end()
+    return response.status(400).end()
   }
   
   if (!request.body.hasOwnProperty('likes')) {
@@ -41,7 +45,11 @@ blogsRouter.delete('/:id', userExtractor, async (request, response) => {
   const blog = await Blog.findById(request.params.id)
 
   if (blog === null) {
-    return response.status(400) // not exist, 400 bad request
+    return response.status(400).end() // not exist, 400 bad request
+  }
+
+  if (request.user === null) {
+    return response.status(401).json({ error: 'not the creator'})
   }
 
   if (blog.user.toString() !== request.user.id.toString()) {

@@ -2,6 +2,8 @@ const Blog = require('../models/blog')
 const User = require('../models/user')
 const helper = require('./helper')
 const supertest = require('supertest')
+const bcrypt = require('bcrypt')
+const jwt = require('jsonwebtoken')
 const app = require('../app')
 
 const api = supertest(app)
@@ -27,71 +29,139 @@ test('unique identifier property of the blog posts is named id', async () => {
   expect(firstBlog.body[0].id).toBeDefined()
 })
 
-test('POST /api/blogs successfully creates new blog post', async () => {
-  const newBlog = {
-    title: "ABC",
-    author: "Chris P. Bacon",
-    url: "https://www.youtube.com/watch?v=pMA3x-bc8iM",
-    likes: 2
-  }
+describe('all posts', () => {
+  beforeEach(async () => {
+    await User.deleteMany({})
+    for (let user of helper.initUsers) {
+      // 注册
+      user.passwordHash = await bcrypt.hash(user.password, saltRounds = 10)
+      const userObject = new User({
+        username: user.username,
+        passwordHash: user.passwordHash,
+        name: user.name,
+      })
+      await userObject.save()
+      // 登录 & token
+      const userForToken = {
+        username: user.username,
+        id: userObject._id
+      }
+      user.token = jwt.sign(userForToken, process.env.SECRET, {expiresIn: 60*60})
+    }
 
-  await api
-    .post('/api/blogs')
-    .send(newBlog)
-    .expect(201)
-    .expect('Content-Type', /application\/json/)
+    // await User.deleteMany({})
+    // await Blog.deleteMany({})
+    // for (let i = 0; i < 2; i++) {
+    //   // users init
+    //   users[i].password = (helper.initUsers.password, saltRounds=10)
+    //   const userObject  = new User({
+    //     username: users[i].username,
+    //     passwordHash: users [i].password,
+    //     name: users[i].name,
+    //   })
+    //   await userObject.save()
+    //   // 登录 & token
+    //   const userForToken = {
+    //     username: users[i].username,
+    //     id: userObject._id
+    //   }
+    //   user.token = await jwt.sign(userForToken, process.env.SECRET, {expiresIn: 60*60})
+      
+    //   // blogs init
+    //   let blogObject = new Blog(helper.initBlogs[i])
+    //   await blogObject.save()
+
+    //   blogObject.user = userObject._id
+    //   userObject.blog = blogObject._id
+    // }
+  })
+
+  test('POST /api/blogs successfully creates new blog post', async () => {
+    const newBlog = {
+      title: "ABC",
+      author: "Chris P. Bacon",
+      url: "https://www.youtube.com/watch?v=pMA3x-bc8iM",
+      likes: 2
+    }
+
+    await api
+      .post('/api/blogs')
+      .set('Authorization', `bearer ${helper.initUsers[0].token}`)
+      .send(newBlog)
+      .expect(201)
+      .expect('Content-Type', /application\/json/)
+    
+    const blogsAtEnd = await helper.getBlogs()
+    expect(blogsAtEnd).toHaveLength(helper.initBlogs.length + 1)
+  })
+
+  test('if likes property missing in request, default give 0', async () => {
+    const newBlog = {
+      title: "ABC",
+      author: "Chris P. Bacon",
+      url: "https://www.youtube.com/watch?v=pMA3x-bc8iM",
+      // likes: 2
+    }
   
-  const blogsAtEnd = await helper.getBlogs()
-  expect(blogsAtEnd).toHaveLength(helper.initBlogs.length + 1)
-})
-
-test('if likes property missing in request, default give 0', async () => {
-  const newBlog = {
-    title: "ABC",
-    author: "Chris P. Bacon",
-    url: "https://www.youtube.com/watch?v=pMA3x-bc8iM",
-    // likes: 2
-  }
-
-  await api
-    .post('/api/blogs')
-    .send(newBlog)
-    .expect(201)
-    .expect('Content-Type', /application\/json/)
-
-  const blogsAtEnd = await helper.getBlogs()
-  expect(blogsAtEnd[2].likes).toBeDefined()
-})
-
-test('if title & url property missing, backend respond 400', async () => {
-  const newBlog = {
-    // title: "ABC",
-    author: "Chris P. Bacon",
-    // url: "https://www.youtube.com/watch?v=pMA3x-bc8iM",
-    likes: 2
-  }
-  await api
-    .post('/api/blogs')
-    .send(newBlog)
-    .expect(400)
-})
-
-test('deletion of existing blog', async () => {
-  const dbAtStart = await helper.getBlogs()
-  const blogToDelete = await dbAtStart[0]
-
-  await api
-    .delete(`/api/blogs/${blogToDelete.id}`)
-    .expect(204)
+    await api
+      .post('/api/blogs')
+      .set('Authorization', `bearer ${helper.initUsers[0].token}`)
+      .send(newBlog)
+      .expect(201)
+      .expect('Content-Type', /application\/json/)
   
-    const dbAfterDelete = await helper.getBlogs()
-    expect(dbAfterDelete).toHaveLength(dbAtStart.length - 1)
+    const blogsAtEnd = await helper.getBlogs()
+    expect(blogsAtEnd[2].likes).toBeDefined()
+  })
+  
+  test('if title & url property missing, backend respond 400', async () => {
+    const newBlog = {
+      // title: "ABC",
+      author: "Chris P. Bacon",
+      // url: "https://www.youtube.com/watch?v=pMA3x-bc8iM",
+      likes: 2
+    }
+
+    await api
+      .post('/api/blogs')
+      .set('Authorization', `bearer ${helper.initUsers[0].token}`)
+      .send(newBlog)
+      .expect(400)
+  })
+
+  test('return 401 Unauthorized if a token is not provided', async () => {
+    const newBlog = {
+      title: "ABC",
+      author: "Chris P. Bacon",
+      url: "https://www.youtube.com/watch?v=pMA3x-bc8iM",
+      likes: 2
+    }
+
+    await api
+      .post('/api/blogs')
+      .send(newBlog)
+      .expect(401)
+  })
 })
 
-test('deletion of non-existing blog', async () => {
-  await api
-    .delete(`/api/blogs/${helper.nonExistingId()}`)
-    .expect(400)
+describe('deletions', () => {
+  test('deletion of existing blog', async () => {
+    const dbAtStart = await helper.getBlogs()
+    const blogToDelete = await dbAtStart[0]
+  
+    await api
+      .delete(`/api/blogs/${blogToDelete.id}`)
+      .expect(204)
+    
+      const dbAfterDelete = await helper.getBlogs()
+      expect(dbAfterDelete).toHaveLength(dbAtStart.length - 1)
+  })
+  
+  test('deletion of non-existing blog', async () => {
+    await api
+      .delete(`/api/blogs/${helper.nonExistingId()}`)
+      .expect(400)
+  })
 })
 
 test('update blog check likes', async () => {
@@ -107,7 +177,6 @@ test('update blog check likes', async () => {
   
   const dbAfterUpdate = await helper.getBlogs()
   expect(dbAfterUpdate[0].likes).toBe(blogAfterUpdate.likes)
-  console.log(dbAfterUpdate)
 })
 
 describe('test /api/users', () => {
