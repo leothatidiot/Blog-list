@@ -42,14 +42,14 @@ blogsRouter.post('/', userExtractor, async (request, response) => {
 })
 
 blogsRouter.delete('/:id', userExtractor, async (request, response) => {
+  if (request.user === null) {
+    return response.status(400).end() // token not provided
+  }
+  
   const blog = await Blog.findById(request.params.id)
 
   if (blog === null) {
     return response.status(400).end() // not exist, 400 bad request
-  }
-
-  if (request.user === null) {
-    return response.status(401).json({ error: 'not the creator'})
   }
 
   if (blog.user.toString() !== request.user.id.toString()) {

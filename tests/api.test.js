@@ -5,15 +5,42 @@ const supertest = require('supertest')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const app = require('../app')
+const { default: mongoose } = require('mongoose')
 
 const api = supertest(app)
 
 // initializing database
 beforeEach(async () => {
   await Blog.deleteMany({})
-  for (let blog of helper.initBlogs) {
+  await User.deleteMany({})
+  
+  for (let i = 0; i < 2; i++) {
+    let user = helper.initUsers[i]
+    
+    // 注册
+    user.passwordHash = await bcrypt.hash(user.password, saltRounds = 10)
+    const userObject = new User({
+      username: user.username,
+      passwordHash: user.passwordHash,
+      name: user.name,
+    })
+    await userObject.save()
+    // 登录 & token
+    const userForToken = {
+      username: user.username,
+      id: userObject.id
+    }
+    user.token = jwt.sign(userForToken, process.env.SECRET, {expiresIn: 60*60})
+    
+    // blogs init
+    let blog = helper.initBlogs[i]
+    blog.user = userObject.id
     let blogObject = new Blog(blog)
-    await blogObject.save()
+
+    const savedBlog = await blogObject.save()
+
+    userObject.blogs = userObject.blogs.concat(savedBlog.id)
+    await userObject.save()
   }
 })
 
@@ -30,52 +57,6 @@ test('unique identifier property of the blog posts is named id', async () => {
 })
 
 describe('all posts', () => {
-  beforeEach(async () => {
-    await User.deleteMany({})
-    for (let user of helper.initUsers) {
-      // 注册
-      user.passwordHash = await bcrypt.hash(user.password, saltRounds = 10)
-      const userObject = new User({
-        username: user.username,
-        passwordHash: user.passwordHash,
-        name: user.name,
-      })
-      await userObject.save()
-      // 登录 & token
-      const userForToken = {
-        username: user.username,
-        id: userObject._id
-      }
-      user.token = jwt.sign(userForToken, process.env.SECRET, {expiresIn: 60*60})
-    }
-
-    // await User.deleteMany({})
-    // await Blog.deleteMany({})
-    // for (let i = 0; i < 2; i++) {
-    //   // users init
-    //   users[i].password = (helper.initUsers.password, saltRounds=10)
-    //   const userObject  = new User({
-    //     username: users[i].username,
-    //     passwordHash: users [i].password,
-    //     name: users[i].name,
-    //   })
-    //   await userObject.save()
-    //   // 登录 & token
-    //   const userForToken = {
-    //     username: users[i].username,
-    //     id: userObject._id
-    //   }
-    //   user.token = await jwt.sign(userForToken, process.env.SECRET, {expiresIn: 60*60})
-      
-    //   // blogs init
-    //   let blogObject = new Blog(helper.initBlogs[i])
-    //   await blogObject.save()
-
-    //   blogObject.user = userObject._id
-    //   userObject.blog = blogObject._id
-    // }
-  })
-
   test('POST /api/blogs successfully creates new blog post', async () => {
     const newBlog = {
       title: "ABC",
@@ -146,20 +127,24 @@ describe('all posts', () => {
 
 describe('deletions', () => {
   test('deletion of existing blog', async () => {
-    const dbAtStart = await helper.getBlogs()
-    const blogToDelete = await dbAtStart[0]
+    const blogsAtStart = await helper.getBlogs()
+    const blogToDelete = await blogsAtStart[0]
   
     await api
       .delete(`/api/blogs/${blogToDelete.id}`)
+      .set('Authorization', `bearer ${helper.initUsers[0].token}`)
       .expect(204)
     
       const dbAfterDelete = await helper.getBlogs()
-      expect(dbAfterDelete).toHaveLength(dbAtStart.length - 1)
+      expect(dbAfterDelete).toHaveLength(blogsAtStart.length - 1)
   })
   
   test('deletion of non-existing blog', async () => {
+    const fakeId = await helper.nonExistingId()
+
     await api
-      .delete(`/api/blogs/${helper.nonExistingId()}`)
+      .delete(`/api/blogs/${fakeId}`)
+      .set('Authorization', `bearer ${helper.initUsers[0].token}`)
       .expect(400)
   })
 })
