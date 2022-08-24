@@ -43,13 +43,13 @@ blogsRouter.post('/', userExtractor, async (request, response) => {
 
 blogsRouter.delete('/:id', userExtractor, async (request, response) => {
   if (request.user === null) {
-    return response.status(400).end() // token not provided
+    return response.status(400).json({ error: 'token not provided'})
   }
   
   const blog = await Blog.findById(request.params.id)
 
   if (blog === null) {
-    return response.status(400).end() // not exist, 400 bad request
+    return response.status(400).end({error: 'this blog not exist'}) // 400 bad request
   }
 
   if (blog.user.toString() !== request.user.id.toString()) {
@@ -61,7 +61,7 @@ blogsRouter.delete('/:id', userExtractor, async (request, response) => {
 })
 
 blogsRouter.put('/:id', async (request, response) => {
-  const updatedBlog = await Blog.updateOne(request.params, request.body)
+  const updatedBlog = await Blog.updateOne({ _id: request.params.id }, request.body)
   response.json(updatedBlog)
 })
 
