@@ -5,7 +5,6 @@ const supertest = require('supertest')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const app = require('../app')
-const { default: mongoose } = require('mongoose')
 
 const api = supertest(app)
 
@@ -36,6 +35,7 @@ beforeEach(async () => {
     let blog = helper.initBlogs[i]
     blog.user = userObject.id
     let blogObject = new Blog(blog)
+    blog.id = blogObject.id
 
     const savedBlog = await blogObject.save()
 
@@ -150,18 +150,16 @@ describe('deletions', () => {
 })
 
 test('update blog check likes', async () => {
-  const blogAtStart = await helper.initBlogs[0]
-  
-  blogAfterUpdate = await {...blogAtStart}
-  blogAfterUpdate.likes = await blogAtStart.likes + 1
+  blogForSend = {...helper.initBlogs[0]}
+  blogForSend.likes += 1
   
   await api
-    .put(`/api/blogs/${blogAfterUpdate.id}`)
-    .send(blogAfterUpdate)
+    .put(`/api/blogs/${blogForSend.id}`)
+    .send(blogForSend)
     .expect('Content-Type', /application\/json/)
   
-  const dbAfterUpdate = await helper.getBlogs()
-  expect(dbAfterUpdate[0].likes).toBe(blogAfterUpdate.likes)
+  const blogsAfterUpdate = await helper.getBlogs()
+  expect(blogsAfterUpdate[0].likes).toBe(blogForSend.likes)
 })
 
 describe('test /api/users', () => {
