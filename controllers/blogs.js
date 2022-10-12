@@ -1,4 +1,5 @@
 const blogsRouter = require('express').Router()
+const res = require('express/lib/response')
 const Blog = require('../models/blog')
 const { userExtractor } = require('../utils/middleware')
 
@@ -42,14 +43,14 @@ blogsRouter.post('/', userExtractor, async (request, response) => {
 })
 
 blogsRouter.delete('/:id', userExtractor, async (request, response) => {
+  if (request.user === null) {
+    return response.status(400).json({ error: 'token not provided'})
+  }
+  
   const blog = await Blog.findById(request.params.id)
 
   if (blog === null) {
-    return response.status(400).end() // not exist, 400 bad request
-  }
-
-  if (request.user === null) {
-    return response.status(401).json({ error: 'not the creator'})
+    return response.status(400).json({error: 'this blog not exist'}) // 400 bad request
   }
 
   if (blog.user.toString() !== request.user.id.toString()) {
@@ -60,9 +61,10 @@ blogsRouter.delete('/:id', userExtractor, async (request, response) => {
   response.status(204).end() // deleted
 })
 
-blogsRouter.put('/:id', async (request, response) => {
-  const updatedBlog = await Blog.updateOne(request.params, request.body)
-  response.json(updatedBlog)
+blogsRouter.put('/:id', (request, response) => {
+  Blog.updateOne({ _id: request.params.id }, request.body)
+    .then(response.status(202).json(request.body))
+    .catch(response.status(400).json({error: 'this blog not exist'}))
 })
 
 module.exports = blogsRouter

@@ -3,13 +3,13 @@ const User = require('../models/user')
 
 var initBlogs = [
   {
-    title: ":)",
+    title: "Things I don't know as of 2018",
     author: "Bobi",
     url: "https://127.0.0.1",
     likes: 2
   },
   {
-    title: "(:",
+    title: "Microservices and the First Law of Distributed Objects",
     author: "Bibo",
     url: "https://127.0.0.1",
     likes: 2
@@ -38,7 +38,7 @@ const nonExistingId = async () => {
   const blog = new Blog(initBlogs[0]) // will remove this soon
   await blog.save()
   await blog.remove()
-  return blog._id.toString()
+  return blog.id.toString()
 }
 
 const getUsers = async () => {
